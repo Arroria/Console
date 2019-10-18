@@ -41,13 +41,17 @@ void ConsoleDoubleBuffer::Release()
 
 void ConsoleDoubleBuffer::SetCursorPos(COORD pos)
 {
-	const std::streampos target = size_t(pos.X + pos.Y * m_bufferCoordSize.X);
-	m_buffer.seekp(target);
-	if (auto tellp = m_buffer.tellp(); tellp < target)
+	const std::streampos target = size_t(pos.X) + size_t(pos.Y) * size_t(m_bufferCoordSize.X);
+	if (m_buffer.seekp(target).fail())
 	{
-		std::string str;
-		str.resize(target - tellp, ' ');
-		std::cout << str;
+		m_buffer.clear();
+		m_buffer.seekp(0, std::ios::end);
+		if (auto tellp = m_buffer.tellp(); tellp < target)
+		{
+			std::string str;
+			str.resize(target - tellp, ' ');
+			std::cout << str;
+		}
 	}
 }
 
