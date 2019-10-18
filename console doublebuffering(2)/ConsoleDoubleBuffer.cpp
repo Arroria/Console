@@ -5,7 +5,8 @@ ConsoleDoubleBuffer::ConsoleDoubleBuffer()
 	, m_cout_buffer(std::cout.rdbuf())
 	, m_buffer()
 	
-	, m_bufferSize{ NULL, NULL }
+	, m_bufferCoordSize{ NULL, NULL }
+	, m_prevFlippedBufferLength(0)
 {
 }
 
@@ -26,7 +27,7 @@ bool ConsoleDoubleBuffer::Initialize()
 
 bool ConsoleDoubleBuffer::Initialize(short x, short y)
 {
-	m_bufferSize = COORD{ x, y };
+	m_bufferCoordSize = COORD{ x, y };
 	_cout_catch_buffer();
 	return true;
 }
@@ -40,7 +41,7 @@ void ConsoleDoubleBuffer::Release()
 
 void ConsoleDoubleBuffer::SetCursorPos(COORD pos)
 {
-	const std::streampos target = pos.X + (pos.Y * m_bufferSize.X);
+	const std::streampos target = size_t(pos.X + pos.Y * m_bufferCoordSize.X);
 	m_buffer.seekp(target);
 	if (auto tellp = m_buffer.tellp(); tellp < target)
 	{
@@ -59,8 +60,15 @@ void ConsoleDoubleBuffer::Clear()
 void ConsoleDoubleBuffer::Flipping()
 {
 	_cout_catch_cout();
+	
 	SetConsoleCursorPosition(m_stdOutputHandle, COORD{ 0, 0 });
 	SetCursorPos(0, 0);
 	std::cout << m_buffer.str();
+
+	size_t bufferSize = _get_buffer_size();
+	if (m_prevFlippedBufferLength > bufferSize)
+		std::cout << std::string(m_prevFlippedBufferLength - bufferSize, ' ');
+	m_prevFlippedBufferLength = bufferSize;
+
 	_cout_catch_buffer();
 }
