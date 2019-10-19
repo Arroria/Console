@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Tetris.cpp" />
+    <ClCompile Include="..\console doublebuffering(2)\ConsoleDoubleBuffer.cpp">
+      <Filter>_temp</Filter>
+    </ClCompile>
+    <ClCompile Include="TetrisGame.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Tetris.h" />
+    <ClInclude Include="..\console doublebuffering(2)\ConsoleDoubleBuffer.h">
+      <Filter>_temp</Filter>
+    </ClInclude>
+    <ClInclude Include="TetrisGame.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="defaultTchunkHub.inl" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="_temp">
+      <UniqueIdentifier>{2bdf5dca-a07e-4133-97ba-37cbaa4a659f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
