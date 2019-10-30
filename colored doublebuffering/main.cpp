@@ -18,16 +18,14 @@ void rendertest()
 		cdbc.SetCursorPos(ran * 2, v);
 		cdbc << "бс";
 	}
-		auto a = std::chrono::steady_clock::now();
-	for (size_t i = 0; i < 600; i++)
-	{
-		cdbc.Flipping();
-	}
-		auto b = std::chrono::steady_clock::now();
-		cdbc.SetColor(15);
-		cdbc.SetCursorPos(00,0);
-		cdbc << std::chrono::duration_cast< std::chrono::milliseconds>(b-a).count();
-		cdbc.Flipping();
+	cdbc.Flipping();
+
+
+	cdbc.Clear();
+	cdbc.SetColor(15);
+	cdbc.SetCursorPos(10,0);
+	cdbc << "hi";
+	cdbc.Flipping();
 }
 
 int main()

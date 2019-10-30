@@ -56,7 +56,6 @@ private:
 	std::stringstream* m_activatedBuffer;
 
 	COORD m_bufferCoordSize;
-	size_t m_prevFlippedBufferLength;
 
 
 

@@ -6,7 +6,6 @@ ColoredDoubleBufferConsole::ColoredDoubleBufferConsole(Color_t startColor)
 	, m_activatedBuffer(std::addressof(m_buffer[startColor]))
 
 	, m_bufferCoordSize{ NULL, NULL }
-	, m_prevFlippedBufferLength(0)
 {
 }
 
@@ -91,7 +90,6 @@ void ColoredDoubleBufferConsole::Flipping()
 	
 	std::streampos _prev_pos = m_activatedBuffer->tellp();
 
-	size_t maxBufferSize = 0;
 	for (size_t index = 0; index < m_buffer.size(); ++index)
 	{
 		auto& indexBuffer = m_buffer[index];
@@ -100,8 +98,6 @@ void ColoredDoubleBufferConsole::Flipping()
 		size_t nowBufferSize = string_available_length(bufferStr);
 		if (nowBufferSize == std::string::npos)
 			continue;
-		if (maxBufferSize < nowBufferSize)
-			maxBufferSize = nowBufferSize;
 
 		size_t start(0), end(0);
 		_primitive_text_color(index);
@@ -116,13 +112,6 @@ void ColoredDoubleBufferConsole::Flipping()
 			std::cout << bufferStr.substr(start, end - start);
 		}
 	}
-
-	if (m_prevFlippedBufferLength > maxBufferSize)
-	{
-		_primitive_cursor_move(maxBufferSize);
-		std::cout << std::string(m_prevFlippedBufferLength - maxBufferSize, ' ');
-	}
-	m_prevFlippedBufferLength = maxBufferSize;
 
 	m_activatedBuffer->seekp(_prev_pos);
 }
