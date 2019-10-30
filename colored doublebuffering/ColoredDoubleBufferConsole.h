@@ -30,15 +30,13 @@ public:
 		White,
 		__MAX
 	};
-	static constexpr Color_t _default_color = Color_t::Gray;
 	static constexpr char _draw_ignore_code = 127;
 
-	ColoredDoubleBufferConsole();
+	ColoredDoubleBufferConsole(Color_t startColor = Color_t::Gray);
 	~ColoredDoubleBufferConsole();
 
 	bool Initialize();
 	bool Initialize(short x, short y);
-	void Release();
 
 	template <typename data_t>
 	ColoredDoubleBufferConsole& operator<<(const data_t& data);
@@ -59,7 +57,6 @@ private:
 
 	COORD m_bufferCoordSize;
 	size_t m_prevFlippedBufferLength;
-
 
 
 
@@ -106,11 +103,8 @@ inline ColoredDoubleBufferConsole& ColoredDoubleBufferConsole::operator<<(const 
 	(*m_activatedBuffer) << data;
 	size_t drawEnd = m_activatedBuffer->tellp();
 
-	for (size_t index = (m_activatedBuffer == std::addressof(m_buffer[_default_color]) ? 0 : m_activatedBuffer - std::addressof(m_buffer[0]) + 1); index < m_buffer.size(); ++index)
+	for (size_t index = m_activatedBuffer - std::addressof(m_buffer[0]) + 1; index < m_buffer.size(); ++index)
 	{
-		if (index == _default_color)
-			continue;
-
 		auto& buffer = m_buffer[index];
 
 		buffer.seekp(0, std::ios::end);

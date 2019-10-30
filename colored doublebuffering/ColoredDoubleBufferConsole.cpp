@@ -1,9 +1,9 @@
 #include "ColoredDoubleBufferConsole.h"
 
-ColoredDoubleBufferConsole::ColoredDoubleBufferConsole()
+ColoredDoubleBufferConsole::ColoredDoubleBufferConsole(Color_t startColor)
 	: m_stdOutputHandle(GetStdHandle(STD_OUTPUT_HANDLE))
 	, m_buffer()
-	, m_activatedBuffer(std::addressof(m_buffer[size_t(_default_color)]))
+	, m_activatedBuffer(std::addressof(m_buffer[startColor]))
 
 	, m_bufferCoordSize{ NULL, NULL }
 	, m_prevFlippedBufferLength(0)
@@ -27,14 +27,8 @@ bool ColoredDoubleBufferConsole::Initialize()
 
 bool ColoredDoubleBufferConsole::Initialize(short x, short y)
 {
-	_primitive_text_color(_default_color);
 	m_bufferCoordSize = COORD{ x, y };
 	return true;
-}
-
-void ColoredDoubleBufferConsole::Release()
-{
-	_primitive_text_color(_default_color);
 }
 
 
@@ -55,7 +49,7 @@ void ColoredDoubleBufferConsole::SetCursorPos(std::streampos pos)
 		if (auto tellp = m_activatedBuffer->tellp(); tellp < pos)
 		{
 			std::string str;
-			str.resize(pos - tellp, (m_activatedBuffer == std::addressof(m_buffer[_default_color]) ? ' ' : _draw_ignore_code));
+			str.resize(pos - tellp, _draw_ignore_code);
 			(*m_activatedBuffer) << str;
 		}
 	}
@@ -97,17 +91,9 @@ void ColoredDoubleBufferConsole::Flipping()
 	
 	std::streampos _prev_pos = m_activatedBuffer->tellp();
 
-	_primitive_cursor_move(0);
-	_primitive_text_color(_default_color);
-	std::cout << m_buffer[_default_color].str();
-
-	size_t maxBufferSize = _get_buffer_size_unsafe(m_buffer[_default_color]);
-
+	size_t maxBufferSize = 0;
 	for (size_t index = 0; index < m_buffer.size(); ++index)
 	{
-		if (index == size_t(_default_color))
-			continue;
-		
 		auto& indexBuffer = m_buffer[index];
 		std::string bufferStr(std::move(indexBuffer.str()));
 		
@@ -134,7 +120,6 @@ void ColoredDoubleBufferConsole::Flipping()
 	if (m_prevFlippedBufferLength > maxBufferSize)
 	{
 		_primitive_cursor_move(maxBufferSize);
-		_primitive_text_color(_default_color);
 		std::cout << std::string(m_prevFlippedBufferLength - maxBufferSize, ' ');
 	}
 	m_prevFlippedBufferLength = maxBufferSize;
