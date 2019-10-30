@@ -27,13 +27,14 @@ bool ColoredDoubleBufferConsole::Initialize()
 
 bool ColoredDoubleBufferConsole::Initialize(short x, short y)
 {
+	_primitive_text_color(_default_color);
 	m_bufferCoordSize = COORD{ x, y };
 	return true;
 }
 
 void ColoredDoubleBufferConsole::Release()
 {
-	SetConsoleTextAttribute(m_stdOutputHandle, size_t(_default_color));
+	_primitive_text_color(_default_color);
 }
 
 
@@ -45,11 +46,6 @@ void ColoredDoubleBufferConsole::SetColor(size_t color)
 	SetCursorPos(prevPos);
 }
 
-void ColoredDoubleBufferConsole::SetCursorPos(COORD pos)
-{
-	return SetCursorPos(size_t(pos.X) + size_t(pos.Y) * size_t(m_bufferCoordSize.X));
-}
-
 void ColoredDoubleBufferConsole::SetCursorPos(std::streampos pos)
 {
 	if (m_activatedBuffer->seekp(pos).fail())
@@ -59,8 +55,8 @@ void ColoredDoubleBufferConsole::SetCursorPos(std::streampos pos)
 		if (auto tellp = m_activatedBuffer->tellp(); tellp < pos)
 		{
 			std::string str;
-			str.resize(pos - tellp, ' ');
-			(*this) << str;
+			str.resize(pos - tellp, (m_activatedBuffer == std::addressof(m_buffer[_default_color]) ? ' ' : _draw_ignore_code));
+			(*m_activatedBuffer) << str;
 		}
 	}
 }
@@ -77,40 +73,52 @@ void ColoredDoubleBufferConsole::Clear()
 
 void ColoredDoubleBufferConsole::Flipping()
 {
-	SetCursorPos(0, 0);
-	SetConsoleCursorPosition(m_stdOutputHandle, COORD{ 0, 0 });
-	SetConsoleTextAttribute(m_stdOutputHandle, size_t(_default_color));
-	std::cout << m_buffer[size_t(_default_color)].str();
-	size_t maxBufferSize = _get_buffer_size(_default_color);
-
-	for (size_t index = 0; index < m_buffer.size(); ++index)
-	{
-		constexpr auto string_find_void = [](std::string& str, size_t pos)->size_t { return str.find(' ', pos); };
-		constexpr auto string_find_anything = [](std::string& str, size_t pos)->size_t
+	constexpr auto string_find_void = [](std::string& str, size_t pos)->size_t { return str.find(_draw_ignore_code, pos); };
+	constexpr auto string_find_anything = [](std::string& str, size_t pos)->size_t
 		{
 			while (pos < str.size())
 			{
-				if (str[pos] != ' ')
+				if (str[pos] != _draw_ignore_code)
 					return pos;
 				++pos;
 			}
 			return std::string::npos;
 		};
-		auto& nowBuffer = m_buffer[index];
-		
+	constexpr auto string_available_length = [](std::string& str)->size_t
+	{
+		for (int pos = str.size() - 1; 0 <= pos; --pos)
+		{
+			if (str[pos] != _draw_ignore_code)
+				return pos;
+		}
+		return std::string::npos;
+	};
+	
+	
+	std::streampos _prev_pos = m_activatedBuffer->tellp();
+
+	_primitive_cursor_move(0);
+	_primitive_text_color(_default_color);
+	std::cout << m_buffer[_default_color].str();
+
+	size_t maxBufferSize = _get_buffer_size_unsafe(m_buffer[_default_color]);
+
+	for (size_t index = 0; index < m_buffer.size(); ++index)
+	{
 		if (index == size_t(_default_color))
 			continue;
-
-
-		size_t nowBufferSize = _get_buffer_size(nowBuffer);
-		if (!nowBufferSize)
+		
+		auto& indexBuffer = m_buffer[index];
+		std::string bufferStr(std::move(indexBuffer.str()));
+		
+		size_t nowBufferSize = string_available_length(bufferStr);
+		if (nowBufferSize == std::string::npos)
 			continue;
 		if (maxBufferSize < nowBufferSize)
 			maxBufferSize = nowBufferSize;
 
-		SetConsoleTextAttribute(m_stdOutputHandle, index);
-		std::string bufferStr(std::move(nowBuffer.str()));
 		size_t start(0), end(0);
+		_primitive_text_color(index);
 		while (true)
 		{
 			start = string_find_anything(bufferStr, end);
@@ -118,15 +126,18 @@ void ColoredDoubleBufferConsole::Flipping()
 			if (start == std::string::npos)
 				break;
 
-			SetConsoleCursorPosition(m_stdOutputHandle, COORD{ short(start), 0 });    //ÁÂÇ¥ ÀÌµ¿
+			_primitive_cursor_move(start);
 			std::cout << bufferStr.substr(start, end - start);
 		}
 	}
 
 	if (m_prevFlippedBufferLength > maxBufferSize)
 	{
-		SetConsoleCursorPosition(m_stdOutputHandle, COORD{ short(maxBufferSize), 0 });
+		_primitive_cursor_move(maxBufferSize);
+		_primitive_text_color(_default_color);
 		std::cout << std::string(m_prevFlippedBufferLength - maxBufferSize, ' ');
 	}
 	m_prevFlippedBufferLength = maxBufferSize;
+
+	m_activatedBuffer->seekp(_prev_pos);
 }

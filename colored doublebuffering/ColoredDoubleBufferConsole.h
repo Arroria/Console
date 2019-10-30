@@ -1,9 +1,11 @@
 #pragma once
+#define NOMINMAX
 #include <Windows.h>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <array>
+#include <type_traits>
 
 class ColoredDoubleBufferConsole
 {
@@ -29,6 +31,7 @@ public:
 		__MAX
 	};
 	static constexpr Color_t _default_color = Color_t::Gray;
+	static constexpr char _draw_ignore_code = 127;
 
 	ColoredDoubleBufferConsole();
 	~ColoredDoubleBufferConsole();
@@ -42,8 +45,7 @@ public:
 
 	void SetColor(Color_t color) { return SetColor(size_t(color)); }
 	void SetColor(size_t color);
-	void SetCursorPos(short x, short y) { return SetCursorPos(COORD{ x, y }); }
-	void SetCursorPos(COORD pos);
+	void SetCursorPos(short x, short y) { SetCursorPos(x + y * m_bufferCoordSize.X); }
 
 	void Clear();
 	void Flipping();
@@ -68,11 +70,31 @@ private:
 	size_t _get_buffer_size(std::stringstream& buffer)
 	{
 		auto p = buffer.tellp();
-		buffer.seekp(0, std::ios::end);
-		auto result = buffer.tellp();
+		auto result = _get_buffer_size_unsafe(buffer);
 		buffer.seekp(p);
 		return result;
 	}
+
+	size_t _get_buffer_size_unsafe(size_t bufferColor) { return _get_buffer_size_unsafe(Color_t(bufferColor)); }
+	size_t _get_buffer_size_unsafe(Color_t bufferColor) { return _get_buffer_size_unsafe(m_buffer[bufferColor]); }
+	size_t _get_buffer_size_unsafe(std::stringstream& buffer)
+	{
+		buffer.seekp(0, std::ios::end);
+		return buffer.tellp();
+	}
+
+
+	void _primitive_cursor_move(std::streampos spos)
+	{
+		short y = int(spos) / m_bufferCoordSize.X;
+		short x = int(spos) - y * m_bufferCoordSize.X;
+		_primitive_cursor_move(COORD{ x, y });
+	}
+	void _primitive_cursor_move(short x, short y)	{ _primitive_cursor_move(COORD{ x, y }); }
+	void _primitive_cursor_move(COORD pos)			{ SetConsoleCursorPosition(m_stdOutputHandle, pos); }
+	void _primitive_text_color(Color_t color)		{ _primitive_text_color(size_t(color)); }
+	void _primitive_text_color(size_t colorCode)	{ SetConsoleTextAttribute(m_stdOutputHandle, colorCode); }
+
 };
 
 
@@ -80,27 +102,24 @@ private:
 template<typename data_t>
 inline ColoredDoubleBufferConsole& ColoredDoubleBufferConsole::operator<<(const data_t& data)
 {
-	std::streampos start = m_activatedBuffer->tellp();
+	size_t drawBegin = m_activatedBuffer->tellp();
 	(*m_activatedBuffer) << data;
-	std::streampos end = m_activatedBuffer->tellp();
+	size_t drawEnd = m_activatedBuffer->tellp();
 
-	bool run = false;
-	for (size_t i = 0; i < m_buffer.size(); i++)
+	for (size_t index = (m_activatedBuffer == std::addressof(m_buffer[_default_color]) ? 0 : m_activatedBuffer - std::addressof(m_buffer[0]) + 1); index < m_buffer.size(); ++index)
 	{
-		if (!run)
-		{
-			if (std::addressof(m_buffer[i]) == m_activatedBuffer)
-				run = true;
-		}
-		else
-		{
-			m_buffer[i].seekp(0, std::ios::end);
-			if (m_buffer[i].tellp() < start)
-				continue;
-		
-			m_buffer[i].seekp(start);
-			m_buffer[i] << std::string(end - start, ' ');
-		}
+		if (index == _default_color)
+			continue;
+
+		auto& buffer = m_buffer[index];
+
+		buffer.seekp(0, std::ios::end);
+		size_t bufferEnd = buffer.tellp();
+		if (!bufferEnd || bufferEnd < drawBegin)
+			continue;
+
+		buffer.seekp(drawBegin);
+		buffer << std::string(std::min(drawEnd - drawBegin, bufferEnd - drawBegin), _draw_ignore_code);
 	}
 	return *this;
 }
