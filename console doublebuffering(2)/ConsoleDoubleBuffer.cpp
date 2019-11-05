@@ -1,78 +1,90 @@
 #include "ConsoleDoubleBuffer.h"
 
-ConsoleDoubleBuffer::ConsoleDoubleBuffer()
-	: m_stdOutputHandle(GetStdHandle(STD_OUTPUT_HANDLE))
-	, m_cout_buffer(std::cout.rdbuf())
-	, m_buffer()
+void __add_void_string(size_t length) { std::cout << std::string(length, ' '); }
+
+
+
+ConsoleDoubleBuffer::ConsoleDoubleBuffer(size_t widthLimite)
+	: m_widthLimite(widthLimite)
+	, m_cdbStream()
+	, m_coutStreambuf(std::cout.rdbuf())
 	
-	, m_bufferCoordSize{ NULL, NULL }
-	, m_prevFlippedBufferLength(0)
+	, m_isRun(false)
+	, m_prevFlippedDataLength(0)
 {
 }
 
 ConsoleDoubleBuffer::~ConsoleDoubleBuffer()
 {
+	if (m_isRun)
+		_set_cout_streambuf_cout();
 }
 
 
 
-bool ConsoleDoubleBuffer::Initialize()
+void ConsoleDoubleBuffer::Begin()
 {
-	CONSOLE_SCREEN_BUFFER_INFO csbi;
-	if (!GetConsoleScreenBufferInfo(m_stdOutputHandle, &csbi))
-		return false;
-
-	return Initialize(csbi.dwSize.X, csbi.dwSize.Y);
+	_set_cout_streambuf_cdb();
+	m_isRun = true;
 }
 
-bool ConsoleDoubleBuffer::Initialize(short x, short y)
+void ConsoleDoubleBuffer::End()
 {
-	m_bufferCoordSize = COORD{ x, y };
-	_cout_catch_buffer();
-	return true;
-}
-
-void ConsoleDoubleBuffer::Release()
-{
-	_cout_catch_cout();
+	_set_cout_streambuf_cout();
+	m_isRun = false;
 }
 
 
 
-void ConsoleDoubleBuffer::SetCursorPos(COORD pos)
+
+void ConsoleDoubleBuffer::CursorTo(size_t x, size_t y)
 {
-	const std::streampos target = size_t(pos.X) + size_t(pos.Y) * size_t(m_bufferCoordSize.X);
-	if (m_buffer.seekp(target).fail())
+	if (!m_isRun)
+		return;
+
+	using pos_t = long long;
+
+	pos_t target = m_widthLimite * y + x;
+	if (m_cdbStream.seekp(target).fail())
 	{
-		m_buffer.clear();
-		m_buffer.seekp(0, std::ios::end);
-		if (auto tellp = m_buffer.tellp(); tellp < target)
+		m_cdbStream.clear();
+		m_cdbStream.seekp(0, std::ios::end);
+		pos_t nowPos = m_cdbStream.tellp();
+		
+		if (pos_t nextPos = nowPos * _streambuf_expansion_magnification; nextPos <= target)
+			__add_void_string(target - nowPos);
+		else
 		{
-			std::string str;
-			str.resize(target - tellp, ' ');
-			std::cout << str;
+			__add_void_string(nextPos - nowPos);
+			m_cdbStream.seekp(target);
 		}
 	}
 }
 
 void ConsoleDoubleBuffer::Clear()
 {
-	m_buffer.str("");
-	m_buffer.clear();
+	m_cdbStream.str("");
+	m_cdbStream.clear();
 }
 
 void ConsoleDoubleBuffer::Flipping()
 {
-	_cout_catch_cout();
+	if (m_isRun)
+		return;
+
+	static HANDLE std_output_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleCursorPosition(std_output_handle, COORD{ 0, 0 });
 	
-	SetConsoleCursorPosition(m_stdOutputHandle, COORD{ 0, 0 });
-	SetCursorPos(0, 0);
-	std::cout << m_buffer.str();
 
-	size_t bufferSize = _get_buffer_size();
-	if (m_prevFlippedBufferLength > bufferSize)
-		std::cout << std::string(m_prevFlippedBufferLength - bufferSize, ' ');
-	m_prevFlippedBufferLength = bufferSize;
+	std::string cdbData = m_cdbStream.str();
 
-	_cout_catch_buffer();
+	size_t dataLength = cdbData.size();
+	if (dataLength < m_prevFlippedDataLength)
+		cdbData.resize(m_prevFlippedDataLength, ' ');
+	m_prevFlippedDataLength = dataLength;
+
+	for (size_t i = m_widthLimite; i < cdbData.size(); i += (m_widthLimite + 1))
+		cdbData.insert(i, 1, '\n');
+	std::cout << cdbData;
+	std::cout.flush();
 }

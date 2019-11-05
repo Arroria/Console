@@ -8,40 +8,31 @@
 class ConsoleDoubleBuffer
 {
 public:
-	ConsoleDoubleBuffer();
+	static constexpr double _streambuf_expansion_magnification = 1.5;
+
+	ConsoleDoubleBuffer(size_t widthLimite);
 	~ConsoleDoubleBuffer();
 
-	bool Initialize();
-	bool Initialize(short x, short y);
-	void Release();
 
-	void SetCursorPos(short x, short y) { return SetCursorPos(COORD{ x, y }); }
-	void SetCursorPos(COORD pos);
+	void Begin();
+	void End();
+
+	void CursorTo(POINT pos) { return CursorTo(pos.x, pos.y); }
+	void CursorTo(size_t x, size_t y);
 
 	void Clear();
 	void Flipping();
 
 
-
 private:
-	// Buffer
-	const HANDLE m_stdOutputHandle;
-	std::streambuf* m_cout_buffer;
-	std::ostringstream m_buffer;
+	const size_t m_widthLimite;
+	std::ostringstream m_cdbStream;
+	std::streambuf* m_coutStreambuf;
 
-	COORD m_bufferCoordSize;
-	size_t m_prevFlippedBufferLength;
+	bool m_isRun;
+	size_t m_prevFlippedDataLength;
 
 
-	void _cout_catch_buffer() { std::cout.rdbuf(m_buffer.rdbuf()); }
-	void _cout_catch_cout() { std::cout.rdbuf(m_cout_buffer); }
-
-	size_t _get_buffer_size()
-	{
-		auto p = m_buffer.tellp();
-		m_buffer.seekp(0, std::ios::end);
-		auto result = m_buffer.tellp();
-		m_buffer.seekp(p);
-		return result;
-	}
+	void _set_cout_streambuf_cdb()	{ std::cout.rdbuf(m_cdbStream.rdbuf()); }
+	void _set_cout_streambuf_cout()	{ std::cout.rdbuf(m_coutStreambuf); }
 };
