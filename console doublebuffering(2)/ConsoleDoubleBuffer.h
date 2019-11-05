@@ -30,9 +30,15 @@ private:
 	std::streambuf* m_coutStreambuf;
 
 	bool m_isRun;
-	size_t m_prevFlippedDataLength;
+	size_t m_prevFlippedDataLength[2];
 
 
 	void _set_cout_streambuf_cdb()	{ std::cout.rdbuf(m_cdbStream.rdbuf()); }
 	void _set_cout_streambuf_cout()	{ std::cout.rdbuf(m_coutStreambuf); }
+
+
+	//temp
+	HANDLE m_front_buffer;
+	HANDLE m_back_buffer;
+	void _buffer_swap() { std::swap(m_front_buffer, m_back_buffer); SetConsoleActiveScreenBuffer(m_front_buffer); }
 };

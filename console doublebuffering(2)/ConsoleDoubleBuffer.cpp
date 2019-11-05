@@ -10,12 +10,21 @@ ConsoleDoubleBuffer::ConsoleDoubleBuffer(size_t widthLimite)
 	, m_coutStreambuf(std::cout.rdbuf())
 	
 	, m_isRun(false)
-	, m_prevFlippedDataLength(0)
+	, m_prevFlippedDataLength{ NULL, NULL }
 {
+	COORD size = { widthLimite, 9000 };
+
+	m_front_buffer = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
+	m_back_buffer = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
+	SetConsoleScreenBufferSize(m_front_buffer, size);
+	SetConsoleScreenBufferSize(m_back_buffer, size);
+	SetConsoleActiveScreenBuffer(m_front_buffer);
 }
 
 ConsoleDoubleBuffer::~ConsoleDoubleBuffer()
 {
+	CloseHandle(m_front_buffer);
+	CloseHandle(m_back_buffer);
 	if (m_isRun)
 		_set_cout_streambuf_cout();
 }
@@ -79,12 +88,16 @@ void ConsoleDoubleBuffer::Flipping()
 	std::string cdbData = m_cdbStream.str();
 
 	size_t dataLength = cdbData.size();
-	if (dataLength < m_prevFlippedDataLength)
-		cdbData.resize(m_prevFlippedDataLength, ' ');
-	m_prevFlippedDataLength = dataLength;
+	if (dataLength < m_prevFlippedDataLength[0])
+		cdbData.resize(m_prevFlippedDataLength[0], ' ');
+	m_prevFlippedDataLength[0] = m_prevFlippedDataLength[1];
+	m_prevFlippedDataLength[1] = dataLength;
 
 	for (size_t i = m_widthLimite; i < cdbData.size(); i += (m_widthLimite + 1))
 		cdbData.insert(i, 1, '\n');
-	std::cout << cdbData;
-	std::cout.flush();
+
+
+	SetConsoleCursorPosition(m_back_buffer, COORD{ 0, 0 });
+	WriteConsoleA(m_back_buffer, cdbData.data(), cdbData.size(), nullptr, nullptr);
+	_buffer_swap();
 }

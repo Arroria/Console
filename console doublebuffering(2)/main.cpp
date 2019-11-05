@@ -3,7 +3,7 @@
 #include <chrono>
 int main()
 {
-	ConsoleDoubleBuffer cdb(128);
+	ConsoleDoubleBuffer cdb(40);
 	int c = 0;
 	while (true)
 	{
@@ -20,5 +20,7 @@ int main()
 		cdb.End();
 		cdb.Flipping();
 		++c;
+
+		Sleep(25);
 	}
 }
