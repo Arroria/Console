@@ -8,8 +8,6 @@
 class ConsoleDoubleBuffer
 {
 public:
-	static constexpr double _streambuf_expansion_magnification = 1.5;
-
 	ConsoleDoubleBuffer(size_t widthLimite);
 	~ConsoleDoubleBuffer();
 
